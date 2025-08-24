@@ -1,0 +1,78 @@
+package com.messaging.messaging.producer;
+
+import com.messaging.messaging.entity.Student;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.annotation.Transformer;
+import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.dsl.IntegrationFlow;
+import org.springframework.integration.dsl.Pollers;
+import org.springframework.integration.json.ObjectToJsonTransformer;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.MessageChannel;
+
+@Configuration
+public class StudentProducer {
+
+    // Input channel for the flow
+    @Bean
+    public MessageChannel studentInputChannel() {
+        return new DirectChannel();
+    }
+
+    // Output channel for JSON
+    @Bean
+    public MessageChannel jsonChannel() {
+        return new DirectChannel();
+    }
+
+    // Supply Student periodically
+    @Bean
+    public IntegrationFlow studentSupplierFlow() {
+        return IntegrationFlow
+                .from(() -> getStudentData(), // Supplier
+                        c -> c.poller(Pollers.fixedDelay(5000)))
+                .channel(studentInputChannel())
+                .get();
+    }
+
+    // Transformer: make name and city uppercase
+    @Transformer(inputChannel = "studentInputChannel", outputChannel = "jsonChannel")
+    public Student uppercaseTransformer(Student student) {
+        student.setName(student.getName().toUpperCase());
+        student.setCity(student.getCity().toUpperCase());
+        System.out.println("Transformed Student: " + student);
+        return student;
+    }
+
+    // Transformer: convert Student to JSON
+    @Bean
+    @Transformer(inputChannel = "jsonChannel", outputChannel = "kafkaChannel")
+    public ObjectToJsonTransformer toJsonTransformer(ObjectMapper objectMapper) {
+        return new ObjectToJsonTransformer(objectMapper);
+    }
+
+    // Kafka output channel
+    @Bean
+    public MessageChannel kafkaChannel() {
+        return new DirectChannel();
+    }
+
+    // Send to Kafka
+    @Bean
+    @org.springframework.integration.annotation.ServiceActivator(inputChannel = "kafkaChannel")
+    public org.springframework.messaging.MessageHandler kafkaMessageHandler(KafkaTemplate<String, String> kafkaTemplate) {
+        return message -> kafkaTemplate.send("pk-produce", message.getPayload().toString());
+    }
+
+    // Hardcoded student data supplier
+    public Student getStudentData() {
+        return Student.builder()
+                .name("mohan")
+                .city("pune")
+                .marks(90.78)
+                .build();
+    }
+}
