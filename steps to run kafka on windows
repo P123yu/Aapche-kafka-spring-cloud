@@ -1,0 +1,20 @@
+steps to run aapacahe kafka 
+
+
+// 1. downlaod aapache kafka .tgz file latest version scala 2.12
+// https://youtu.be/LqT396DOUEE?si=mmJXDmLdkx2WGNTM    see youtube video link
+
+
+
+// example for later :
+
+
+after setiing up .env variables in our computer
+
+in reconfig-server.properties and server.properties
+
+
+# A comma separated list of directories under which to store log files
+log.dirs=D:/kafka1/kafka1/tmp/kraft-combined-logs
+
+
