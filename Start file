@@ -1,0 +1,4 @@
+
+1. if you want that producer will send data data to consumer automatically after fixed delay then use supplier in producer 
+
+2. if you want producer will send data to consumer only on api call then in producer use StreamBridge to send messages
