@@ -1,0 +1,452 @@
+
+======================================================== PRODUCER MICROSERVICE ======================================================
+
+1. entity ==================================================================
+
+
+package com.messaging.messaging.entity;
+
+import lombok.*;
+import org.springframework.context.annotation.Configuration;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Configuration
+@ToString
+public class Student {
+    private String name;
+    private String city;
+    private Double marks;
+}
+
+
+
+2. producer  ==============================================================
+
+
+
+package com.messaging.messaging.producer;
+
+import com.messaging.messaging.entity.Student;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.context.annotation.Configuration;
+
+
+@Configuration
+public class StudentProducer {
+
+    @Autowired
+    private StreamBridge streamBridge;
+
+    public String produce(Student student){
+        streamBridge.send("pk-produce", student);
+        return "Message sent successfully!";
+    }
+}
+
+
+// here @component and bean is not allowed thats why we are using @Configuration 
+
+// note: if we donot need argument in method then we can go with supplier (because supplier do not take argument) 
+// not with StreamBridge it means we can define function definition in application.yaml similar like consumer
+
+
+
+3. controller =================================================================================
+
+
+package com.messaging.messaging.controller;
+
+import com.messaging.messaging.entity.Student;
+import com.messaging.messaging.producer.StudentProducer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@CrossOrigin
+@RequestMapping("/student")
+public class StudentController {
+
+    @Autowired
+    private StudentProducer studentProducer;
+
+    @PostMapping("/create")
+    public String sendMessage(@RequestBody Student student){
+        return studentProducer.produce(student);
+    }
+
+}
+
+
+
+4. application.yaml =====================================================================================
+
+
+server:
+  port: 8087
+spring:
+  cloud:
+    stream:
+      bindings:
+        pk-produce-out-0:
+          destination: pk-produce
+  kafka:
+    binder:
+      brokers: localhost:9092
+
+
+note:  
+# We don't need 'function.definition' here because we are using StreamBridge,
+# which is the imperative way to send messages.
+# Define an output binding for the 'pk-produce' destination (Kafka topic).
+# The 'output' binding is implicitly connected to StreamBridge.
+
+
+
+note: which we see later 
+// suppose if we are using supplier (which do not take any argument)  which is a functional interface of java then in that case we need 'function.definition' 
+
+
+
+==== POM.XML 
+
+1. spring web
+2. cloud Stream
+3. Spring for Apache Kafka
+4. lombok
+
+
+
+================================================================================ CONSUMER MICROSERVICE ===========================================================
+
+
+1. entity =========================================================================================
+
+package com.messaging.entity;
+
+import lombok.*;
+import org.springframework.context.annotation.Configuration;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Configuration
+@ToString
+public class Student {
+    private String name;
+    private String city;
+    private Double marks;
+}
+
+
+
+
+
+2. consumer ====================================================================================
+
+package com.messaging.consumer;
+
+import com.messaging.entity.Student;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+
+import java.util.function.Consumer;
+
+@SpringBootApplication
+public class ConsumerApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ConsumerApplication.class, args);
+	}
+
+
+	@Bean
+	public Consumer<Student> consume() {
+		System.out.println("received");
+		return student -> System.out.println("student "+student);
+	}
+
+}
+
+
+
+
+3. application.yaml =======================================================================================
+
+server:
+  port: 8082
+
+spring:
+  cloud:
+    function:
+      definition: consume      # this name is going downside in bindings 
+    stream:
+      bindings:
+        consume-in-0:
+          destination: pk-produce   # topic name  (which is same for both producer and consumer) 
+
+    kafka:
+      binder:
+        brokers: localhost:9092
+
+
+
+
+
+
+==================================================== almost common pom.xml for both ==================================================
+
+// producer 
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.5.5</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.messaging</groupId>
+	<artifactId>messaging</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>messaging</name>
+	<description>Demo project for Spring Boot</description>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+	<properties>
+		<java.version>17</java.version>
+		<spring-cloud.version>2025.0.0</spring-cloud.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-stream</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-stream-binder-kafka</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-stream-test-binder</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.30</version>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+
+			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
+
+
+
+// consumer 
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.5.5</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.messaging</groupId>
+	<artifactId>consumer</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>consumer</name>
+	<description>Demo project for Spring Boot</description>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+	<properties>
+		<java.version>17</java.version>
+		<spring-cloud.version>2025.0.0</spring-cloud.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-stream</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-stream-binder-kafka</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-stream-test-binder</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.30</version>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+
+			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
+
+
+
+
+
+
+
+
+
+
+
+
+
