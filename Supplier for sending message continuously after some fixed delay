@@ -1,0 +1,90 @@
+===== producer =====  consumer will same for both supplier or stream-bridge 
+
+1. entity ==================================================================
+
+
+package com.messaging.messaging.entity;
+
+import lombok.*;
+import org.springframework.context.annotation.Configuration;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Configuration
+@ToString
+@Builder
+public class Student {
+    private String name;
+    private String city;
+    private Double marks;
+}
+
+
+2. producer ==================================================================
+
+
+package com.messaging.messaging.producer;
+
+import com.messaging.messaging.entity.Student;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
+
+import java.util.function.Supplier;
+
+
+@Configuration
+public class StudentProducer {
+
+
+    @Bean
+    public Supplier<Student> produce(){   // because Supplier do not take any argument 
+        return this::getStudentData;
+    }
+
+    public Student getStudentData(){
+        return Student.builder()
+                .name("mohan").city("pune")
+                .marks(90.78).build();
+    }
+
+}
+
+
+
+
+=========================================================
+
+
+3. application.properties 
+
+server:
+  port: 8087
+
+spring:
+  cloud:
+    function:
+      definition: produce
+
+    stream:
+      bindings:
+        produce-out-0:
+          destination: pk-produce
+
+
+    kafka:
+      binder:
+        brokers: localhost:9092
+
+
+  integration:
+    poller:
+      fixed-delay: 5000   // i am sending delay of 5 sec to sending message from producer and consumer 
+
+
+
+
+
+
