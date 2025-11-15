@@ -14,4 +14,15 @@
 .\bin\windows\kafka-console-producer.bat --topic test --bootstrap-server localhost:9092
 
 # Start a Kafka console consumer to read messages from "testc" from the beginning
+
 .\bin\windows\kafka-console-consumer.bat --topic test --from-beginning --bootstrap-server localhost:9092
+
+
+
+
+
+
+================= note: if cluster id is already exists then 
+1. Stop Kafka (if running)
+2. go to ==> C:\kafka\tmp\kraft-combined-logs\
+3. Delete the entire directory comes under C:\kafka\tmp\kraft-combined-logs
